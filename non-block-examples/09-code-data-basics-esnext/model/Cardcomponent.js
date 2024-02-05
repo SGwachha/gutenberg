@@ -1,20 +1,45 @@
-import { useState } from '@wordpress/element';
+import { useState, useEffect } from '@wordpress/element';
 import { Card, CardHeader, CardBody, CardFooter, Button, Flex, Modal } from '@wordpress/components';
 import { useEntityRecords } from '@wordpress/core-data';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from '@wordpress/data';
 import { RichText } from '@wordpress/block-editor';
 import { useMessage } from '../redux/MessageContext';
+import apiFetch from "@wordpress/api-fetch"
 
 const CardComponent = () => {
+  const { showMessage } = useMessage();
   const navigate = useNavigate();
   const { deleteEntityRecord } = useDispatch('core');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [todoIdToDelete, setTodoIdToDelete] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
-  const {showMessage} = useMessage();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState();
+  const [postLength, setPostLength] = useState();
+  const perPage = 3;
 
-  const { records, hasResolved } = useEntityRecords('postType', 'post');
+  const { records, hasResolved } = useEntityRecords('postType', 'post', { per_page: perPage, page: currentPage });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await apiFetch({
+          path: '/wp/v2/posts',
+          method: 'GET',
+          parse: false,
+        })
+          .then((res) => {
+            setPostLength(res.headers.get('X-WP-Total'))
+            setTotalPages(res.headers.get('X-WP-Totalpages'))
+          })
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+
+    fetchData();
+  }, [currentPage]);
 
   const handleDeleteClick = (id) => {
     setTodoIdToDelete(id);
@@ -38,28 +63,48 @@ const CardComponent = () => {
     navigate(`/update/${id}`);
   };
 
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    const maxPage = Math.ceil(postLength / perPage);
+    if (currentPage < maxPage) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
   return (
     <>
       <Flex style={{ flexDirection: 'row', gap: '20px', justifyContent: 'flex-start' }}>
-        {hasResolved ? (
-          records.map((post) => (
-            <Card key={post.id}>
-              <CardHeader>
-                {post?.title?.rendered}
-              </CardHeader>
-              <CardBody>
-                <RichText.Content value={post?.content?.rendered} />
-              </CardBody>
-              <CardFooter>
-                <Button variant="primary" onClick={() => handleDeleteClick(post.id)}>Delete</Button>
-                <Button variant="primary" onClick={() => handleUpdateClick(post.id)}>Update</Button>
-              </CardFooter>
-            </Card>
-          ))
-        ) : (
-          <p>Loading..</p>
-        )}
+        {records && records.map((post) => (
+          <Card key={post.id}>
+            <CardHeader>
+              {post?.title?.rendered}
+            </CardHeader>
+            <CardBody>
+              <RichText.Content value={post?.content?.rendered} />
+            </CardBody>
+            <CardFooter>
+              <Button variant="primary" onClick={() => handleDeleteClick(post.id)}>Delete</Button>
+              <Button variant="primary" onClick={() => handleUpdateClick(post.id)}>Update</Button>
+            </CardFooter>
+          </Card>
+        ))}
       </Flex>
+      <div>
+        <Button variant="primary" onClick={handlePrevPage} disabled={currentPage === 1}>Previous</Button>
+        <span>{`Page ${currentPage}`}</span>
+        <Button
+          variant="primary"
+          onClick={handleNextPage}
+          disabled={!hasResolved || currentPage > totalPages}
+        >
+          Next
+        </Button>
+      </div>
       {showConfirmModal && (
         <Modal
           title="Are You Sure?"

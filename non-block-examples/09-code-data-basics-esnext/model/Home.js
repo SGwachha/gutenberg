@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@wordpress/components';
-import Cardcomponent from './Cardcomponent';
+import CardComponent from './Cardcomponent';
 
 const Home = ({ todos, setTodos }) => {
     const navigate = useNavigate();
@@ -10,7 +11,7 @@ const Home = ({ todos, setTodos }) => {
             <h1>To-do List</h1>
             <>
                 <Button variant="primary" onClick={() => { navigate('/add') }}>Add</Button>
-                <Cardcomponent todos={todos} setTodos={setTodos} />
+                <CardComponent todos={todos} setTodos={setTodos} />
             </>
         </>
     );
