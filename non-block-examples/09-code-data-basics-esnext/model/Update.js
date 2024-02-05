@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from '@wordpress/element';
+import { useState, useEffect } from '@wordpress/element';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     Card,
     CardHeader,
     CardBody,
     Button,
-    CardFooter,
     __experimentalText as Text,
     __experimentalHeading as Heading,
     TextareaControl,
 } from '@wordpress/components';
 import apiFetch from '@wordpress/api-fetch';
+import { useEntityRecord } from '@wordpress/core-data';
 import { useMessage } from '../redux/MessageContext';
 
 const Update = ({ setTodos }) => {
@@ -19,21 +19,17 @@ const Update = ({ setTodos }) => {
     const [inputModel, setInputModel] = useState({ title: '', content: '' });
     const [inputError, setInputError] = useState('');
     const [error, setError] = useState(null);
-    const {showMessage} = useMessage();
+    const { showMessage } = useMessage();
 
+    const { record: todo, loading, error: fetchError } = useEntityRecord('postType', 'post', id);
 
     useEffect(() => {
-        const fetchTodo = async () => {
-            try {
-                const response = await apiFetch({ path: `/wp/v2/posts/${id}` });
-                setInputModel({ title: response.title.rendered, content: response.content.rendered });
-            } catch (error) {
-                setError('Error fetching todo: ' + error.message);
-            }
-        };
-
-        fetchTodo();
-    }, [id]);
+        if (!loading && !fetchError && todo) {
+            setInputModel({ title: todo.title.raw, content: todo.content.raw });
+        } else if (fetchError) {
+            setError('Error fetching todo: ' + fetchError.message);
+        }
+    }, [loading, fetchError, todo]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -55,12 +51,11 @@ const Update = ({ setTodos }) => {
             const updatedTodo = {
                 title: inputModel.title,
                 content: inputModel.content,
-                status: 'publish',
             };
 
             await apiFetch({
                 path: `/wp/v2/posts/${id}`,
-                method: 'PUT',
+                method: 'POST',
                 data: updatedTodo,
             });
 
@@ -75,6 +70,7 @@ const Update = ({ setTodos }) => {
             });
 
             showMessage('Todo updated successfully');
+            navigate('/');
 
         } catch (error) {
             setError('Error updating todo: ' + error.message);

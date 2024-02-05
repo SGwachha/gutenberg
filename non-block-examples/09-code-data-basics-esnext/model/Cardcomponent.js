@@ -1,104 +1,80 @@
-import { useState, useEffect } from '@wordpress/element';
+import { useState } from '@wordpress/element';
+import { Card, CardHeader, CardBody, CardFooter, Button, Flex, Modal } from '@wordpress/components';
+import { useEntityRecords } from '@wordpress/core-data';
 import { useNavigate } from 'react-router-dom';
-import { Card, Button, CardHeader, CardFooter, CardBody, Flex, Modal, Notice } from '@wordpress/components';
+import { useDispatch } from '@wordpress/data';
 import { RichText } from '@wordpress/block-editor';
-import apiFetch from '@wordpress/api-fetch';
 import { useMessage } from '../redux/MessageContext';
 
-const Cardcomponent = ({ todos = [], setTodos }) => {
+const CardComponent = () => {
   const navigate = useNavigate();
-
-  const [deletedTodoTitle, setDeletedTodoTitle] = useState('');
-  const [showConfirmPopover, setShowConfirmPopover] = useState(false);
+  const { deleteEntityRecord } = useDispatch('core');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [todoIdToDelete, setTodoIdToDelete] = useState(null);
-  const [error, setError] = useState(null);
-  const [dataDeleted, setDataDeleted] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
   const {showMessage} = useMessage();
 
-  useEffect(() => {
-    fetchTodos();
-  }, []);
+  const { records, hasResolved } = useEntityRecords('postType', 'post');
 
-  const fetchTodos = async () => {
-    try {
-      const data = await apiFetch({
-        path: '/wp/v2/posts',
-        method: 'GET',
-      });
-      setTodos(data);
-    } catch (error) {
-      setError('Failed to fetch todos');
-      console.error('Error fetching todos:', error);
-    }
-  };
-
-  const handleDelete = (id, title) => {
+  const handleDeleteClick = (id) => {
     setTodoIdToDelete(id);
-    setDeletedTodoTitle(title);
-    setShowConfirmPopover(true);
-    showMessage('Todos deleted successfully')
+    setShowConfirmModal(true);
   };
 
   const confirmDelete = async () => {
     try {
-      await apiFetch({
-        path: `/wp/v2/posts/${todoIdToDelete}`,
-        method: 'DELETE',
-      });
-      const updatedTodos = todos.filter(todo => todo.id !== todoIdToDelete);
-      setTodos(updatedTodos);
-      setShowConfirmPopover(false);
-      setDeletedTodoTitle('');
-      setDataDeleted(true)
+      if (todoIdToDelete !== null) {
+        await deleteEntityRecord('postType', 'post', todoIdToDelete);
+        setShowConfirmModal(false);
+        setTodoIdToDelete(null);
+        showMessage('Post deleted successfully');
+      }
     } catch (error) {
-      setError('Failed to delete todo');
+      setDeleteError(error.message);
     }
   };
 
-  const handleUpdate = (id) => {
+  const handleUpdateClick = (id) => {
     navigate(`/update/${id}`);
-  };
-
-  const handleCloseConfirmPopover = () => {
-    setShowConfirmPopover(false);
-    setTodoIdToDelete(null);
   };
 
   return (
     <>
-      <Flex style={{ justifyContent: 'flex-start' }}>
-        {todos.map(todo => (
-          <Card key={todo.id}>
-            <CardHeader>
-              <RichText.Content tagName="h3" value={todo.title.rendered} />
-            </CardHeader>
-            <CardBody>
-              <RichText.Content tagName="p" value={todo.content.rendered} />
-            </CardBody>
-            <CardFooter>
-              <Button variant="primary" onClick={() => handleDelete(todo.id)}>Delete</Button>
-              <Button variant="primary" onClick={() => handleUpdate(todo.id)}>Update</Button>
-            </CardFooter>
-          </Card>
-        ))}
+      <Flex style={{ flexDirection: 'row', gap: '20px', justifyContent: 'flex-start' }}>
+        {hasResolved ? (
+          records.map((post) => (
+            <Card key={post.id}>
+              <CardHeader>
+                {post?.title?.rendered}
+              </CardHeader>
+              <CardBody>
+                <RichText.Content value={post?.content?.rendered} />
+              </CardBody>
+              <CardFooter>
+                <Button variant="primary" onClick={() => handleDeleteClick(post.id)}>Delete</Button>
+                <Button variant="primary" onClick={() => handleUpdateClick(post.id)}>Update</Button>
+              </CardFooter>
+            </Card>
+          ))
+        ) : (
+          <p>Loading..</p>
+        )}
       </Flex>
-      {showConfirmPopover && (
+      {showConfirmModal && (
         <Modal
-          position="bottom center"
-          onRequestClose={handleCloseConfirmPopover}
-          focusOnMount={false}
+          title="Are You Sure?"
+          onRequestClose={() => setShowConfirmModal(false)}
         >
-          <h1>Are You Sure??</h1>
-          <Flex style={{ width: '500px' }}>
-            <div style={{ padding: '10px' }}>Are you sure you want to delete the todo "{deletedTodoTitle}"?</div>
+          <h1>Are You Sure You Want to Delete This Item?</h1>
+          {deleteError && <p style={{ color: 'red' }}>{deleteError}</p>}
+          <Flex style={{ justifyContent: 'flex-end', gap: '10px' }}>
+            <Button variant="primary" onClick={() => setShowConfirmModal(false)}>No</Button>
             <Button variant="primary" onClick={confirmDelete}>Yes</Button>
-            <Button variant="primary" onClick={handleCloseConfirmPopover}>No</Button>
           </Flex>
         </Modal>
       )}
-      {error && <p>Error: {error}</p>}
     </>
   );
 };
 
-export default Cardcomponent;
+export default CardComponent;
