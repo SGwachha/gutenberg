@@ -1,43 +1,40 @@
 import { useState, useEffect } from '@wordpress/element';
 import { Card, CardHeader, CardBody, CardFooter, Button, Flex, Modal } from '@wordpress/components';
-import { useEntityRecords } from '@wordpress/core-data';
-import { useNavigate } from 'react-router-dom';
 import { useDispatch } from '@wordpress/data';
 import { RichText } from '@wordpress/block-editor';
 import { useMessage } from '../redux/MessageContext';
-import apiFetch from "@wordpress/api-fetch"
+import apiFetch from "@wordpress/api-fetch";
 
 const CardComponent = () => {
   const { showMessage } = useMessage();
-  const navigate = useNavigate();
   const { deleteEntityRecord } = useDispatch('core');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [todoIdToDelete, setTodoIdToDelete] = useState(null);
-  const [deleteError, setDeleteError] = useState(null);
+  const [todoIdToDelete, setTodoIdToDelete] = useState();
+  const [deleteError, setDeleteError] = useState();
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState();
-  const [postLength, setPostLength] = useState();
+  const [totalPages, setTotalPages] = useState(1);
+  const [postLength, setPostLength] = useState(0);
+  const [records, setRecords] = useState([]);
   const perPage = 3;
-
-  const { records, hasResolved } = useEntityRecords('postType', 'post', { per_page: perPage, page: currentPage });
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await apiFetch({
-          path: '/wp/v2/posts',
-          method: 'GET',
+          path: `/wp/v2/posts?per_page=${perPage}&page=${currentPage}`,
           parse: false,
         })
-          .then((res) => {
-            setPostLength(res.headers.get('X-WP-Total'))
-            setTotalPages(res.headers.get('X-WP-Totalpages'))
+          .then(async (res) => {
+            const totalCount = res.headers.get('X-WP-Total');
+            const totalPagesCount = res.headers.get('X-WP-Totalpages');
+            setPostLength(totalCount);
+            setTotalPages(totalPagesCount);
+            setRecords(await res.json());
           })
       } catch (error) {
         console.error('Error fetching data:', error);
       }
     };
-
     fetchData();
   }, [currentPage]);
 
@@ -70,8 +67,7 @@ const CardComponent = () => {
   };
 
   const handleNextPage = () => {
-    const maxPage = Math.ceil(postLength / perPage);
-    if (currentPage < maxPage) {
+    if (currentPage < totalPages) {
       setCurrentPage(currentPage + 1);
     }
   };
@@ -79,7 +75,7 @@ const CardComponent = () => {
   return (
     <>
       <Flex style={{ flexDirection: 'row', gap: '20px', justifyContent: 'flex-start' }}>
-        {records && records.map((post) => (
+        {records.map((post) => (
           <Card key={post.id}>
             <CardHeader>
               {post?.title?.rendered}
@@ -97,13 +93,7 @@ const CardComponent = () => {
       <div>
         <Button variant="primary" onClick={handlePrevPage} disabled={currentPage === 1}>Previous</Button>
         <span>{`Page ${currentPage}`}</span>
-        <Button
-          variant="primary"
-          onClick={handleNextPage}
-          disabled={!hasResolved || currentPage > totalPages}
-        >
-          Next
-        </Button>
+        <Button variant="primary" onClick={handleNextPage} disabled={currentPage >= totalPages}>Next</Button>
       </div>
       {showConfirmModal && (
         <Modal
