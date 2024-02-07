@@ -1,43 +1,41 @@
 import { useState, useEffect } from '@wordpress/element';
 import { useNavigate, useParams } from 'react-router-dom';
+import { __ } from '@wordpress/i18n';
 import {
     Card,
     CardHeader,
     CardBody,
+    TextControl,
+    DateTimePicker,
     Button,
     __experimentalText as Text,
     __experimentalHeading as Heading,
     TextareaControl,
 } from '@wordpress/components';
-import apiFetch from '@wordpress/api-fetch';
+import { useDispatch } from '@wordpress/data';
 import { useEntityRecord } from '@wordpress/core-data';
 import { useMessage } from '../redux/MessageContext';
 
-const Update = ({ setTodos }) => {
+const Update = () => {
+    const coreStore = 'core'; // custom store
     const navigate = useNavigate();
     const { id } = useParams();
     const [inputModel, setInputModel] = useState({ title: '', content: '' });
     const [inputError, setInputError] = useState('');
-    const [error, setError] = useState(null);
+    const [eventLocation, setEventLocation] = useState();
+    const [eventDate, setEventDate] = useState(new Date());
     const { showMessage } = useMessage();
+    const { saveEntityRecord } = useDispatch(coreStore);
 
-    const { record: todo, loading, error: fetchError } = useEntityRecord('postType', 'post', id);
+    const { record, loading, error, meta } = useEntityRecord('postType', 'post', id);
 
     useEffect(() => {
-        if (!loading && !fetchError && todo) {
-            setInputModel({ title: todo.title.raw, content: todo.content.raw });
-        } else if (fetchError) {
-            setError('Error fetching todo: ' + fetchError.message);
+        if (!loading && !error && record) {
+            setInputModel({ title: record?.title?.rendered, content: record?.content?.rendered });
+            setEventLocation(meta?.event_location || '');
+            setEventDate(meta?.event_date ? new Date(meta?.event_date) : new Date());
         }
-    }, [loading, fetchError, todo]);
-
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setInputModel(prevModel => ({
-            ...prevModel,
-            [name]: value
-        }));
-    };
+    }, [loading, error, record, meta]);
 
     const handleUpdate = async (e) => {
         e.preventDefault();
@@ -48,32 +46,20 @@ const Update = ({ setTodos }) => {
         }
 
         try {
-            const updatedTodo = {
+            const res = saveEntityRecord('postType', 'post', {
+                id,
                 title: inputModel.title,
                 content: inputModel.content,
-            };
-
-            await apiFetch({
-                path: `/wp/v2/posts/${id}`,
-                method: 'POST',
-                data: updatedTodo,
+                meta: {
+                    event_location: eventLocation,
+                    event_date: eventDate,
+                }
             });
-
-            setTodos(prevTodos => {
-                const updatedTodos = prevTodos.map(todo => {
-                    if (todo.id === id) {
-                        return { ...todo, ...updatedTodo };
-                    }
-                    return todo;
-                });
-                return updatedTodos;
-            });
-
             showMessage('Todo updated successfully');
-            navigate('/');
 
         } catch (error) {
-            setError('Error updating todo: ' + error.message);
+            console.error('Error updating Todo:', error);
+            setInputError('Error updating Todo: ' + error.message);
         }
     };
 
@@ -87,27 +73,36 @@ const Update = ({ setTodos }) => {
                     <Text>
                         <form onSubmit={handleUpdate}>
                             <div className='card-design'>
-                                <input
-                                    type='text'
-                                    name='title'
-                                    placeholder='Title'
+                                <TextControl
+                                    label={__('Title')}
                                     value={inputModel.title}
-                                    onChange={handleInputChange}
+                                    onChange={(value) => { setInputModel(prevModel => ({ ...prevModel, title: value })) }}
                                 />
                                 <TextareaControl
-                                    placeholder='content'
-                                    value={inputModel?.content}
-                                    onChange={(value) => setInputModel(prevState => ({ ...prevState, content: value }))}
+                                    placeholder='Content'
+                                    value={inputModel.content}
+                                    onChange={(value) => {
+                                        setInputModel(prevState => ({ ...prevState, content: value }))
+                                    }}
                                 />
-                                {inputError && <p className='error'>{inputError}</p>}
+                                <TextControl
+                                    label={__('Address')}
+                                    value={meta?.event_location}
+                                    onChange={(value) => setEventLocation(value)}
+                                />
+                                <DateTimePicker
+                                    currentDate={meta?.event_date}
+                                    onChange={(value) => setEventDate(value)}
+                                    is12Hour={true}
+                                />
                             </div>
                             <Button variant="primary" type='submit'>Update</Button>
-                            <Button variant="primary" onClick={() => { navigate('/') }}>Back</Button>
+                            <Button variant="primary" onClick={() => navigate('/')}>Back</Button>
                         </form>
                     </Text>
                 </CardBody>
             </Card>
-            {error && <p>Error: {error}</p>}
+            {error && <p>Error fetching record: {error.message}</p>}
         </>
     );
 };

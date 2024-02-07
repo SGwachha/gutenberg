@@ -1,7 +1,7 @@
-// NoticeMessage component accepting a message prop
 import { useNavigate } from 'react-router-dom';
 import { Notice, Flex } from '@wordpress/components';
 import { useMessage } from '../redux/MessageContext';
+import { useEffect } from 'react';
 
 const NoticeMessage = ({ message }) => {
     const navigate = useNavigate();
@@ -9,8 +9,17 @@ const NoticeMessage = ({ message }) => {
 
     const handleClose = () => {
         showMessage(null);
-        navigate('/');
     };
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            handleClose();
+        }, 3000);
+
+        return () => {
+            clearTimeout(timer);
+        };
+    }, []);
 
     return (
         <Notice status="success" isDismissible onRemove={handleClose}>

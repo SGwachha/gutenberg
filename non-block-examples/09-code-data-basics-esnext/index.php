@@ -69,3 +69,27 @@ function load_custom_wp_admin_scripts( $hook )
 }
 
 add_action('admin_enqueue_scripts', 'load_custom_wp_admin_scripts');
+
+add_action( 'rest_api_init', function(){
+
+	register_meta( 
+		'post', 
+		'event_location', 
+		array(
+			'type' => 'string',
+			'single' => true,
+			'show_in_rest' => true,
+		)
+	);
+	
+	register_meta( 
+		'post', 
+		'event_date', 
+		array(
+			'type' => 'string',
+			'single' => true,
+			'show_in_rest' => true,
+		)
+	);
+	
+} );

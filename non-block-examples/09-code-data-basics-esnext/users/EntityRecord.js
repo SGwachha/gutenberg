@@ -1,17 +1,32 @@
 import { useDispatch } from "@wordpress/data";
 import { useCallback, useState } from "@wordpress/element";
-import { TextareaControl, TextControl, Button } from "@wordpress/components";
+import { TextareaControl, TextControl, Button, DateTimePicker } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { useNavigate } from "react-router-dom";
 import { useMessage } from '../redux/MessageContext';
 
 function EntityRecord() {
     const navigate = useNavigate();
+    const [title, setTitle] = useState('');
+    const [content, setContent] = useState('');
+    const [meta, setMeta] = useState({event_location: "", event_date: ""});
     const dispatch = useDispatch();
     const { showMessage } = useMessage();
 
-    const [title, setTitle] = useState('');
-    const [content, setContent] = useState('');
+    const handleLocationChange = (eventlocation) => {
+        setMeta(prevMeta => ({
+            ...prevMeta,
+            event_location: eventlocation
+
+        }));
+    }
+
+    const handleDateChage = (eventdate) => {
+        setMeta(prevMeta => ({
+            ...prevMeta,
+            event_date: eventdate
+        }))
+    }
 
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
@@ -23,17 +38,19 @@ function EntityRecord() {
                     title: title,
                     content: content,
                     status: 'publish',
+                    meta: meta,
                 },
             );
             setTitle('');
             setContent('');
+            setMeta({ event_location: '', event_date: '' });
             showMessage(__('Post added successfully'));
-            navigate('/');
+            navigate('/update/:id');
 
         } catch (err) {
             console.error('Error adding Post:', err);
         }
-    }, [title, content, dispatch, navigate]);
+    }, [title, content, meta, dispatch, navigate]);
 
     return (
         <form onSubmit={handleSubmit}>
@@ -48,6 +65,16 @@ function EntityRecord() {
                     onChange={setContent}
                     value={content}
                     rows={8}
+                />
+                <TextControl
+                    label={__('Address')}
+                    value={meta.event_location}
+                    onChange={(value) => handleLocationChange(value)}
+                />
+                <DateTimePicker
+                    currentDate={meta.event_date}
+                    onChange={(value) => handleDateChage(value)}
+                    is12Hour={true}
                 />
             </div>
             <Button isPrimary type="submit">{__('Add')}</Button>
