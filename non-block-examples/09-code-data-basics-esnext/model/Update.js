@@ -17,23 +17,24 @@ import { useEntityRecord } from '@wordpress/core-data';
 import { useMessage } from '../redux/MessageContext';
 
 const Update = () => {
-    const coreStore = 'core'; // custom store
-    const navigate = useNavigate();
     const { id } = useParams();
+    const { record, loading, error, meta } = useEntityRecord('postType', 'post', id);
+    const coreStore = 'core';
+    const navigate = useNavigate();
     const [inputModel, setInputModel] = useState({ title: '', content: '' });
-    const [inputError, setInputError] = useState('');
-    const [eventLocation, setEventLocation] = useState();
+    const [eventLocation, setEventLocation] = useState('');
     const [eventDate, setEventDate] = useState(new Date());
     const { showMessage } = useMessage();
     const { saveEntityRecord } = useDispatch(coreStore);
 
-    const { record, loading, error, meta } = useEntityRecord('postType', 'post', id);
-
     useEffect(() => {
         if (!loading && !error && record) {
-            setInputModel({ title: record?.title?.rendered, content: record?.content?.rendered });
-            setEventLocation(meta?.event_location || '');
-            setEventDate(meta?.event_date ? new Date(meta?.event_date) : new Date());
+            setInputModel(prevInputModel => prevInputModel.title ? prevInputModel : { title: record?.title?.rendered, content: record?.content?.rendered });
+            const meta = record.meta;
+            if (meta) {
+                setEventLocation(meta.event_location || '');
+                setEventDate(meta.event_date ? new Date(meta.event_date) : new Date());
+            }
         }
     }, [loading, error, record, meta]);
 
@@ -46,7 +47,7 @@ const Update = () => {
         }
 
         try {
-            const res = saveEntityRecord('postType', 'post', {
+            const res = await saveEntityRecord('postType', 'post', {
                 id,
                 title: inputModel.title,
                 content: inputModel.content,
@@ -59,7 +60,6 @@ const Update = () => {
 
         } catch (error) {
             console.error('Error updating Todo:', error);
-            setInputError('Error updating Todo: ' + error.message);
         }
     };
 
@@ -79,19 +79,21 @@ const Update = () => {
                                     onChange={(value) => { setInputModel(prevModel => ({ ...prevModel, title: value })) }}
                                 />
                                 <TextareaControl
+                                    label={__('Content')}
                                     placeholder='Content'
                                     value={inputModel.content}
                                     onChange={(value) => {
                                         setInputModel(prevState => ({ ...prevState, content: value }))
                                     }}
+                                    rows={8}
                                 />
                                 <TextControl
                                     label={__('Address')}
-                                    value={meta?.event_location}
+                                    value={eventLocation}
                                     onChange={(value) => setEventLocation(value)}
                                 />
                                 <DateTimePicker
-                                    currentDate={meta?.event_date}
+                                    currentDate={eventDate}
                                     onChange={(value) => setEventDate(value)}
                                     is12Hour={true}
                                 />
@@ -102,7 +104,6 @@ const Update = () => {
                     </Text>
                 </CardBody>
             </Card>
-            {error && <p>Error fetching record: {error.message}</p>}
         </>
     );
 };

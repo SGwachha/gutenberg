@@ -1,37 +1,36 @@
-import { useDispatch } from "@wordpress/data";
-import { useCallback, useState } from "@wordpress/element";
+import { useState, useCallback } from "@wordpress/element";
 import { TextareaControl, TextControl, Button, DateTimePicker } from "@wordpress/components";
 import { __ } from "@wordpress/i18n";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from '@wordpress/data';
 import { useMessage } from '../redux/MessageContext';
 
 function EntityRecord() {
     const navigate = useNavigate();
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
-    const [meta, setMeta] = useState({event_location: "", event_date: ""});
+    const [meta, setMeta] = useState({ event_location: "", event_date: "" });
     const dispatch = useDispatch();
     const { showMessage } = useMessage();
 
-    const handleLocationChange = (eventlocation) => {
+    const handleLocationChange = useCallback((eventLocation) => {
         setMeta(prevMeta => ({
             ...prevMeta,
-            event_location: eventlocation
-
+            event_location: eventLocation
         }));
-    }
+    }, []);
 
-    const handleDateChage = (eventdate) => {
+    const handleDateChange = useCallback((eventDate) => {
         setMeta(prevMeta => ({
             ...prevMeta,
-            event_date: eventdate
-        }))
-    }
+            event_date: eventDate
+        }));
+    }, []);
 
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         try {
-            await dispatch('core').saveEntityRecord(
+            const newTodoId = await dispatch('core').saveEntityRecord(
                 'postType',
                 'post',
                 {
@@ -41,16 +40,15 @@ function EntityRecord() {
                     meta: meta,
                 },
             );
-            setTitle('');
-            setContent('');
-            setMeta({ event_location: '', event_date: '' });
+            const todoIdString = typeof newTodoId === 'object' ? newTodoId.id.toString() : newTodoId.toString();
+
             showMessage(__('Post added successfully'));
-            navigate('/update/:id');
+            navigate(`/update/${todoIdString}`);
 
         } catch (err) {
             console.error('Error adding Post:', err);
         }
-    }, [title, content, meta, dispatch, navigate]);
+    }, [title, content, meta, dispatch, navigate, showMessage]);
 
     return (
         <form onSubmit={handleSubmit}>
@@ -73,7 +71,7 @@ function EntityRecord() {
                 />
                 <DateTimePicker
                     currentDate={meta.event_date}
-                    onChange={(value) => handleDateChage(value)}
+                    onChange={(value) => handleDateChange(value)}
                     is12Hour={true}
                 />
             </div>

@@ -5,7 +5,6 @@ import { RichText } from '@wordpress/block-editor';
 import { useMessage } from '../redux/MessageContext';
 import apiFetch from "@wordpress/api-fetch";
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import moment from 'moment';
 
 const CardComponent = () => {
   const { showMessage } = useMessage();
@@ -34,12 +33,6 @@ const CardComponent = () => {
     };
     fetchData();
   }, [currentPage]);
-
-  const formatDateTime = (dateTimeString) => {
-    const formattedDateTime = moment(dateTimeString).format('MMMM Do YYYY, h:mm:ss a');
-    return formattedDateTime;
-  };
-
 
   const updatePageInUrl = (page) => {
     setSearchParams({ page });
@@ -70,7 +63,6 @@ const CardComponent = () => {
       setShowConfirmModal(false);
       setTodoIdToDelete(null);
       showMessage('Post deleted successfully');
-      fetchData();
     } catch (error) {
       setDeleteError(error.message);
     }
@@ -105,7 +97,7 @@ const CardComponent = () => {
               <RichText.Content value={post.meta.event_location} />
             </CardBody>
             <CardBody>
-              <RichText.Content value={formatDateTime(post.meta.event_data)} />
+              <RichText.Content value={post.meta.event_date} />
             </CardBody>
             <CardFooter>
               <Button variant="primary" onClick={() => handleDeleteClick(post.id)}>Delete</Button>
