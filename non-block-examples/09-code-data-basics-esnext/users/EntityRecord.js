@@ -40,7 +40,6 @@ function EntityRecord() {
                     meta: meta,
                 },
             );
-            // remove this commit message
             const todoIdString = typeof newTodoId === 'object' ? newTodoId.id.toString() : newTodoId.toString();
 
             showMessage(__('Post added successfully'));
